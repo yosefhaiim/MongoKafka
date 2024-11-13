@@ -1,0 +1,100 @@
+services:
+  # Kafka Zookeeper - Kafka דורש Zookeeper לפעול
+  zookeeper:
+    image: wurstmeister/zookeeper:3.4.6
+    container_name: zookeeper
+    environment:
+      - ZOOKEEPER_SERVER_ID=1
+      - ZOOKEEPER_LISTENER_PORT=2181
+    ports:
+      - "2181:2181"
+    networks:
+      - kafka-network
+
+  # Kafka Broker
+  kafka:
+    image: wurstmeister/kafka:latest
+    container_name: kafka
+    environment:
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_LISTENER_SECURITY_PROTOCOL=PLAINTEXT
+      - KAFKA_LISTENER_INTERNAL_PORT=9093
+      - KAFKA_LISTENER_PORT=9092
+      - KAFKA_LISTENER_NAME=PLAINTEXT
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_LISTENER_NAME=INTERNAL
+      - KAFKA_LISTENER_INTERNAL_HOST=kafka
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+    networks:
+      - kafka-network
+
+  # MongoDB - לשמירת נתונים (הונאות ועסקאות בעלות ערך גבוה)
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    networks:
+      - kafka-network
+    volumes:
+      - mongo-data:/data/db
+
+  # סימולטור - מייצר נתוני עסקאות ומפרסם אותם ל-Kafka
+  mongo_kafka_transaction_simulator:
+    build:
+      context: ./mongo_kafka_transaction_simulator
+    depends_on:
+      - kafka
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    networks:
+      - kafka-network
+
+  # Consumer - אחסון עסקאות הונאה ב-MongoDB
+  fraud_transactions_consumer:
+    build:
+      context: ./fraud_transactions_consumer
+    depends_on:
+      - kafka
+      - mongo
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - MONGO_URI=mongo:27017
+    networks:
+      - kafka-network
+
+  # Consumer - אחסון עסקאות בעלות ערך גבוה ב-MongoDB
+  high_value_transactions_consumer:
+    build:
+      context: ./high_value_transactions_consumer
+    depends_on:
+      - kafka
+      - mongo
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - MONGO_URI=mongo:27017
+    networks:
+      - kafka-network
+
+  # Consumer - רישום עסקאות רגילות לקובץ CSV
+  regular_transactions_consumer:
+    build:
+      context: ./regular_transactions_consumer
+    depends_on:
+      - kafka
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    networks:
+      - kafka-network
+
+# רשת שיתופית בין כל השירותים
+networks:
+  kafka-network:
+    driver: bridge
+
+# Volumes לשמירת נתוני MongoDB
+volumes:
+  mongo-data:

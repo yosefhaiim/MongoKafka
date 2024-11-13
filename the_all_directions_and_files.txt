@@ -1,0 +1,17 @@
+MongoKafka/
+├── docker-compose.yml                     # הגדרת Docker Compose לכל השירותים בפרויקט
+├── mongo_kafka_transaction_simulator/     # תקייה עבור הסימולציה של העסקאות
+│   ├── Dockerfile                          # Dockerfile לסימולציית העסקאות
+│   └── simulator.py                        # הקובץ שמכיל את קוד ה-Producer, כלומר הקוד שכתבת
+├── kafka_stream_processor/                 # עיבוד זרם העסקאות
+│   ├── Dockerfile                          # Dockerfile עבור ה-Stream Processor
+│   └── stream_processor.py                 # קוד לעיבוד נתונים וזיהוי הונאות
+├── fraud_consumer/                         # צרכן עסקאות הונאה
+│   ├── Dockerfile                          # Dockerfile עבור צרכן הונאות
+│   └── fraud_consumer.py                   # קוד לצריכת עסקאות הונאה ושמירתן ב-MongoDB
+├── high_value_consumer/                    # צרכן עסקאות בעלות ערך גבוה
+│   ├── Dockerfile                          # Dockerfile עבור צרכן עסקאות גבוהות ערך
+│   └── high_value_consumer.py              # קוד לצריכת עסקאות בעלות ערך גבוה ושמירתן ב-MongoDB
+└── transaction_logger/                     # רישום עסקאות רגילות
+    ├── Dockerfile                          # Dockerfile עבור רישום עסקאות רגילות
+    └── transaction_logger.py               # קוד לרישום עסקאות רגילות בקובץ CSV

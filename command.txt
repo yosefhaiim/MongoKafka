@@ -1,0 +1,115 @@
+כן, ניתן להשתמש ב-`requirements.txt` אחד בלבד עבור כל הפרויקט אם כל הקבצים שייכים לאותו פרויקט ויש להם תלויות משותפות. במקרה זה, אפשר לשים את כל התלויות בקובץ `requirements.txt` אחד, ולשייך אותו לכל השירותים שבפרויקט, כל עוד כל השירותים משתמשים באותן תלויות.
+
+### 1. האם צריך `requirements.txt` לכל תיקייה?
+לא, לא כל תיקייה צריכה קובץ `requirements.txt`. רק אם תיקייה או מודול יש צורך בתלויות שונות שדורשות התקנה בנפרד, אז כדאי לשים קובץ `requirements.txt` בתוכה.
+
+במקרים של פרויקטים שבהם כל החלקים עובדים יחד (כמו במקרה שלך שבו כל השירותים משתמשים באותן ספריות), מספיק קובץ `requirements.txt` אחד שמכיל את כל התלויות המשותפות.
+
+### 2. סדר הפקודות להרצת כל שרת:
+
+נניח שברשותך את הקבצים המוגדרים כהלכה, והם מחולקים בתיקיות לפי המודל שהגדרת. הנה סדר הפקודות שתוכל להריץ כדי להפעיל את כל השירותים:
+
+#### א.  בניית Docker Images:
+
+1. **בניית Docker Image לכל שירות**:
+    ראשית, עליך לבנות את ה-Docker Images לכל אחד מהשירותים (Consumer, Producer, Stream Processor, וכו'):
+
+    ```bash
+    docker build -t mongo-kafka-producer ./producer
+    docker build -t mongo-kafka-consumer ./consumer
+    docker build -t mongo-kafka-stream-processor ./stream_processor
+    docker build -t mongo-kafka-transaction-logger ./transaction_logger
+    ```
+
+    כאן `./producer`, `./consumer`, `./stream_processor`, ו-`./transaction_logger` הם הנתיבים לתקיות שבהן נמצאים הקבצים המיועדים.
+
+#### ב. הרצת Docker Compose:
+
+2. **הפעלה באמצעות Docker Compose**:
+    אם יש לך קובץ `docker-compose.yml` שמכיל את כל ההגדרות של ה-Services (כמו Kafka, MongoDB, וכל שירותי ה-Producer וה-Consumer), אתה יכול להפעיל את כל השירותים בו זמנית:
+
+    ```bash
+    docker-compose up --build
+    ```
+
+    `--build` יגרום ל-Docker לבנות את התמונה עבור כל שירות לפני הפעלתו, אם זה לא נעשה קודם.
+
+3. **הרצת Docker Compose ברקע**:
+    אם אתה רוצה להריץ את השירותים ברקע (בשביל תהליך שוטף), השתמש בפקודה:
+
+    ```bash
+    docker-compose up -d
+    ```
+
+#### ג. הפעלת השירותים בנפרד (אם לא משתמשים ב-Docker Compose):
+
+אם אתה לא משתמש ב-Docker Compose, תוכל להפעיל את כל אחד מהשירותים באופן ידני כך:
+
+1. **הרצת MongoDB**:
+    אם אתה לא משתמש ב-Docker Compose, תוכל להריץ את MongoDB כך:
+
+    ```bash
+    docker run -d --name mongo -p 27017:27017 mongo:latest
+    ```
+
+2. **הרצת Kafka**:
+    אם Kafka לא מוגדר ב-Docker Compose, ניתן להריץ את Kafka כך:
+
+    ```bash
+    docker run -d --name kafka -p 9092:9092 --link mongo kafka:latest
+    ```
+
+3. **הרצת Producer (מעל Kafka)**:
+    הרץ את ה-Producer בתוך קונטיינר:
+
+    ```bash
+    docker run -d --name kafka-producer mongo-kafka-producer
+    ```
+
+4. **הרצת Consumers (מעל Kafka)**:
+    הרץ את ה-Consumers אחד אחרי השני (אם יש לך יותר מאחד):
+
+    ```bash
+    docker run -d --name kafka-consumer mongo-kafka-consumer
+    ```
+
+5. **הרצת Stream Processor (אם יש)**:
+    אם יש לך גם Stream Processor, הרץ אותו כך:
+
+    ```bash
+    docker run -d --name stream-processor mongo-kafka-stream-processor
+    ```
+
+#### ד. חיבור לשירותים:
+
+1. **MongoDB**: תחבר את שירותי ה-Consumers וה-Producer ל-MongoDB באמצעות URI המוגדר ב-`MONGO_URI`. לדוגמה:
+    ```python
+    MONGO_URI = 'mongodb://localhost:27017'
+    ```
+
+2. **Kafka**: תחבר את כל שירותי ה-Producer וה-Consumer ל-Kafka באמצעות URI המוגדר ב-`KAFKA_BOOTSTRAP_SERVERS`. לדוגמה:
+    ```python
+    KAFKA_BOOTSTRAP_SERVERS = 'localhost:9092'
+    ```
+
+#### ה. שמירת קבצי הגדרות:
+אם אתה רוצה לאחסן את כל הקבצים הללו בספרייה אחת, תוודא שכל שירות שזקוק לפלטים של Kafka או MongoDB יודע כיצד להתחבר באמצעות ההגדרות.
+
+### 3. קובץ `requirements.txt` משותף:
+
+כמו שציינתי קודם, תוכל להשתמש בקובץ `requirements.txt` אחד לכל השירותים אם כל השירותים משתמשים באותן תלויות. הנה דוגמה לקובץ `requirements.txt` משותף:
+
+#### `requirements.txt`:
+
+```txt
+kafka-python==2.0.2
+pymongo==4.1.0
+```
+
+### סיכום
+
+לסיכום, כל שירות בפרויקט שלך יכול להשתמש באותו `requirements.txt` אם הם חולקים את אותן תלויות. אם לא, תוכל ליצור קובץ `requirements.txt` לכל שירות בנפרד.
+
+לאחר מכן, תוכל לבנות ולהריץ את כל השירותים עם Docker ו-Docker Compose, כדי לנהל את כל החלקים בצורה מאורגנת.
+
+אם יש לך שאלות נוספות או דברים שדורשים הבהרה, אני כאן לעזור!
